@@ -1,0 +1,147 @@
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../iron-resizable-behavior/iron-resizable-behavior.html">
+
+<dom-module id="proto-grid-layout">
+  <template>
+    <style>
+      :host {
+        display: block;
+      }
+
+      :host([hidden]) {
+        display: none !important;
+      }
+
+      #layout {
+        display: -ms-grid; /* IE11 */
+        display: grid;
+        margin: 0 auto;
+        -ms-grid-columns: 1fr; /* IE11 */
+        grid-template-columns: 1fr;
+        align-items: baseline;
+      }
+
+      #layout ::slotted(*) {
+        -ms-grid-row-align: start; /* IE11 */
+      }
+
+      #layout ::slotted([full-width]) {
+        grid-column: 1 / -1;
+      }
+    </style>
+    <div id="layout">
+      <slot id="slot"></slot>
+    </div>
+  </template>
+
+  <script>
+    /**
+     * `proto-grid-layout`
+     * Responsive fluid layout component based on CSS Grid Layout
+     *
+     * @customElement
+     * @polymer
+     * @demo demo/index.html
+     */
+    class ProtoGridLayout extends Polymer.mixinBehaviors(
+      [Polymer.IronResizableBehavior], Polymer.Element
+    ) {
+      static get is() { return 'proto-grid-layout'; }
+
+      static get properties() {
+        return {
+          _width: Number,
+
+          _columns: {
+            type: Number,
+            observer: '_columnsChanged'
+          },
+
+          _rows: {
+            type: Number,
+            observer: '_rowsChanged'
+          },
+
+          minColumns: Number,
+
+          maxColumns: Number
+        };
+      }
+
+      static get observers() {
+        return [
+          '_updateColumns(_width, minColumns, maxColumns)'
+        ];
+      }
+
+      ready() {
+        super.ready();
+        this.$.slot.addEventListener('slotchange', this._placeChildren.bind(this));
+      }
+
+      connectedCallback() {
+        super.connectedCallback();
+        this._updateWidth();
+        this.addEventListener('iron-resize', this._updateWidth);
+      }
+
+      disconnectedCallback() {
+        super.disconnectedCallback();
+        this.removeEventListener('iron-resize', this._updateWidth);
+      }
+
+      _updateWidth() {
+        this._width = this.$.layout.offsetWidth;
+      }
+
+      _updateColumns(_width, minColumns, maxColumns) {
+        if (_width === undefined) return;
+
+        minColumns = minColumns || 1;
+        maxColumns = maxColumns || Infinity;
+
+        this._columns = Math.max(minColumns, Math.min(Math.floor(_width / 240), maxColumns));
+      }
+
+      _columnsChanged(_columns) {
+        const columnsValue = Array(...new Array(_columns)).map(() => '1fr').join(' 1.5em ');
+        this.$.layout.style.setProperty('-ms-grid-columns', columnsValue); // IE11
+        this.$.layout.style.setProperty('grid-template-columns', columnsValue);
+        this._placeChildren();
+      }
+
+      _rowsChanged(_rows) {
+        const rowsValue = Array(...new Array(_rows)).map(() => 'auto').join(' 1.5em ');
+        this.$.layout.style.setProperty('-ms-grid-rows', rowsValue); // IE11
+        this.$.layout.style.setProperty('grid-template-rows', rowsValue);
+      }
+
+      _placeChildren() {
+        let col = 0, row = 0;
+        Array.from(this.$.slot.assignedNodes()).forEach(el => {
+          if (!el.style) return;
+
+          let span = 1;
+          if (el.hasAttribute('full-width')) {
+            col = 0;
+            row++;
+            span = 2*this._columns - 1;
+          } else if (col > this._columns - 1) {
+            col = 0;
+            row++;
+          }
+          el.style.setProperty('-ms-grid-column', col*2 + 1); // IE11
+          el.style.setProperty('-ms-grid-row', row*2 + 1); // IE11
+          el.style.setProperty('-ms-grid-column-span', span); // IE11
+          el.style.setProperty('grid-column', col*2 + 1);
+          el.style.setProperty('grid-row', row*2 + 1);
+          el.style.setProperty('grid-column-end', col*2 + 1 + span);
+          col += span;
+        });
+        this._rows = row + 1;
+      }
+    }
+
+    window.customElements.define(ProtoGridLayout.is, ProtoGridLayout);
+  </script>
+</dom-module>
