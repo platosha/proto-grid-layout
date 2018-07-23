@@ -28,6 +28,11 @@
       #layout ::slotted([full-width]) {
         grid-column: 1 / -1;
       }
+
+      #layout ::slotted(vaadin-button) {
+        /* Emulate baseline alignment for Safari / IE11 */
+        margin-top: 2.25rem;
+      }
     </style>
     <div id="layout">
       <slot id="slot"></slot>
@@ -111,18 +116,31 @@
       }
 
       _rowsChanged(_rows) {
-        const rowsValue = Array(...new Array(_rows)).map(() => 'auto').join(' 1.5em ');
+        const rowsValue = Array(...new Array(_rows)).map(() => 'auto').join(' 0 ');
         this.$.layout.style.setProperty('-ms-grid-rows', rowsValue); // IE11
         this.$.layout.style.setProperty('grid-template-rows', rowsValue);
       }
 
       _placeChildren() {
+        this.$.layout.style.display = 'none';
+        if (!this._placeChildrenEnqueued) {
+          window.requestAnimationFrame(() => this._placeChildrenFinish());
+          this._placeChildrenEnqueued = true;
+        }
+      }
+
+      _placeChildrenFinish() {
         let col = 0, row = 0;
         Array.from(this.$.slot.assignedNodes()).forEach(el => {
           if (!el.style) return;
 
           let span = 1;
-          if (el.hasAttribute('full-width')) {
+          const fullWidth = {
+            'block': true,
+            'flex': true,
+            'table': true
+          }[getComputedStyle(el).getPropertyValue('display')];
+          if (fullWidth) {
             col = 0;
             row++;
             span = 2*this._columns - 1;
@@ -139,6 +157,12 @@
           col += span;
         });
         this._rows = row + 1;
+
+        this.$.layout.style.removeProperty('display');
+
+        this._placeChildrenEnqueued = false;
+
+        this._updateWidth();
       }
     }
 
