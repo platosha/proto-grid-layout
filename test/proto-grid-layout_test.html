@@ -13,36 +13,57 @@
   </head>
   <body>
 
-    <test-fixture id="BasicTestFixture">
+    <test-fixture id="basic">
       <template>
         <proto-grid-layout></proto-grid-layout>
       </template>
     </test-fixture>
 
-    <test-fixture id="ChangedPropertyTestFixture">
-      <template>
-        <proto-grid-layout prop1="new-prop1"></proto-grid-layout>
-      </template>
-    </test-fixture>
-
     <script>
-      suite('proto-grid-layout', () => {
+      describe('proto-grid-layout', () => {
 
-        test('instantiating the element with default properties works', () => {
-          const element = fixture('BasicTestFixture');
-          assert.equal(element.prop1, 'proto-grid-layout');
-          const elementShadowRoot = element.shadowRoot;
-          const elementHeader = elementShadowRoot.querySelector('h2');
-          assert.equal(elementHeader.innerHTML, 'Hello proto-grid-layout!');
+        let gridLayout;
+
+        beforeEach(() => gridLayout = fixture('basic'));
+
+        // The rendering is async now, so wait one frame
+        beforeEach(done => requestAnimationFrame(() => done()));
+
+        it('should be registered', () => {
+          const klass = customElements.get('proto-grid-layout');
+          expect(klass).to.not.be.instanceof(HTMLUnknownElement);
+          expect(gridLayout.constructor).to.equal(klass);
         });
 
-        test('setting a property on the element works', () => {
-          // Create a test fixture
-          const element = fixture('ChangedPropertyTestFixture');
-          assert.equal(element.prop1, 'new-prop1');
-          const elementShadowRoot = element.shadowRoot;
-          const elementHeader = elementShadowRoot.querySelector('h2');
-          assert.equal(elementHeader.innerHTML, 'Hello new-prop1!');
+        it('should have display: block; style', () => {
+          expect(getComputedStyle(gridLayout).display).to.equal('block');
+        });
+
+        it('should include Polymer.IronResizableBehavior', () => {
+          expect(gridLayout.notifyResize).to.be.instanceof(Function);
+          const spy = sinon.spy();
+          gridLayout.addEventListener('iron-resize', spy);
+          gridLayout.notifyResize();
+          expect(spy).to.be.called;
+        });
+
+        describe('layout container', () => {
+
+          it('should exist', () => {
+            expect(gridLayout.$.layout).to.be.instanceof(HTMLElement);
+          });
+
+          it('should have display: grid; style', () => {
+            expect(getComputedStyle(gridLayout.$.layout).display)
+              .to.be.oneOf(['grid', '-ms-grid']);
+          });
+
+          it('should contain a default slot', () => {
+            const slot = gridLayout.$.slot;
+            expect(slot.getAttribute('name')).to.be.null;
+            expect(slot.parentNode).to.equal(gridLayout.$.layout);
+          });
+
         });
 
       });
